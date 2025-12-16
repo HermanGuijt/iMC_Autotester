@@ -1,0 +1,30 @@
+
+# ----- Python -----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.log
+
+# Virtuele omgevingen
+venv/
+.env/
+.venv/
+
+# ----- Editor/IDE -----
+.vscode/
+.idea/
+*.code-workspace
+
+# ----- OS-specifiek -----
+.DS_Store
+Thumbs.db
+
+# ----- BeagleBone/Embedded -----
+# Logbestanden en tijdelijke data
+*.log
+*.tmp
+
+# ----- Configs (optioneel, als je lokaal# ----- Configs (optioneel, als je lokaal houdt) -----
