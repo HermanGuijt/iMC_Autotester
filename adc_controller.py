@@ -38,15 +38,18 @@ class ADCController:
         
         try:
             if board and ADS:
-                # Initialiseer I2C (P9_19 = SCL, P9_20 = SDA)
-                i2c = busio.I2C(board.SCL_1, board.SDA_1)
+                # Initialiseer I2C direct met bus 2 (P9_19 = SCL, P9_20 = SDA)
+                # BeagleBone Black I2C-2 bus (/dev/i2c-2)
+                from board import SCL, SDA
+                i2c = busio.I2C(SCL, SDA)
                 self.adc = ADS.ADS1115(i2c, address=address, gain=self.GAIN)
                 
                 # Configureer alle 4 single-ended kanalen
-                self.channels[0] = AnalogIn(self.adc, ADS.P0)
-                self.channels[1] = AnalogIn(self.adc, ADS.P1)
-                self.channels[2] = AnalogIn(self.adc, ADS.P2)
-                self.channels[3] = AnalogIn(self.adc, ADS.P3)
+                # AnalogIn accepteert integers 0-3 als kanaal nummers
+                self.channels[0] = AnalogIn(self.adc, 0)
+                self.channels[1] = AnalogIn(self.adc, 1)
+                self.channels[2] = AnalogIn(self.adc, 2)
+                self.channels[3] = AnalogIn(self.adc, 3)
                 
                 print(f"✓ ADS1115 ADC geïnitialiseerd op adres 0x{address:02X}")
             else:
@@ -148,8 +151,8 @@ class ADCController:
         try:
             from adafruit_ads1x15.analog_in import AnalogIn
             
-            # Map kanaal nummers naar ADS pins
-            pin_map = [ADS.P0, ADS.P1, ADS.P2, ADS.P3]
+            # Gebruik integers 0-3 als kanaal nummers
+            pin_map = [0, 1, 2, 3]
             
             if pos_channel < 4 and neg_channel < 4:
                 diff_channel = AnalogIn(self.adc, 

@@ -153,7 +153,7 @@ class BeagleBoneController:
         """Menu voor relay configuratie"""
         self.clear_screen()
         print("=" * 60)
-        print(" Relay Configuratie (1-60Hz)")
+        print(" Relay Configuratie (0.01-60Hz)")
         print("=" * 60)
         print()
         print("1. Start relay met frequentie")
@@ -165,14 +165,14 @@ class BeagleBoneController:
         choice = input("Keuze: ").strip()
         
         if choice == "1":
-            freq = float(input("Frequentie (1-60Hz): "))
-            if 1 <= freq <= 60:
+            freq = float(input("Frequentie (0.01-60Hz): "))
+            if 0.01 <= freq <= 60:
                 self.relay.start_switching(freq)
                 self.relay_running = True
                 print(f"✓ Relay schakelt op {freq}Hz")
                 time.sleep(2)
             else:
-                print("✗ Frequentie moet tussen 1 en 60 Hz zijn")
+                print("✗ Frequentie moet tussen 0.01 en 60 Hz zijn")
                 time.sleep(2)
         elif choice == "2":
             self.relay.set_state(True)

@@ -65,11 +65,13 @@ class RelayController:
         Start het schakelen van de relay met opgegeven frequentie
         
         Args:
-            frequency: Schakelfrequentie in Hz (1-60)
+            frequency: Schakelfrequentie in Hz (0.01-60)
+                      Bijv: 0.5 Hz = 1 puls per 2 seconden
+                            0.1 Hz = 1 puls per 10 seconden
         """
         # Valideer frequentie
-        if frequency < 1 or frequency > 60:
-            print(f"✗ Frequentie moet tussen 1 en 60 Hz zijn (gegeven: {frequency})")
+        if frequency < 0.01 or frequency > 60:
+            print(f"✗ Frequentie moet tussen 0.01 en 60 Hz zijn (gegeven: {frequency})")
             return False
         
         # Stop eventueel lopend schakelen

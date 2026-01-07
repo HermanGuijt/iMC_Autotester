@@ -42,15 +42,14 @@ class DACController:
         
         try:
             if board:
-                # Initialiseer I2C (P9_19 = SCL, P9_20 = SDA)
-                i2c = busio.I2C(board.SCL_1, board.SDA_1)
+                # Initialiseer I2C direct met bus 2 (P9_19 = SCL, P9_20 = SDA)
+                # BeagleBone Black I2C-2 bus (/dev/i2c-2)
+                from board import SCL, SDA
+                i2c = busio.I2C(SCL, SDA)
                 self.dac = adafruit_mcp4728.MCP4728(i2c, address=address)
                 
-                # Configureer alle kanalen voor normale modus met interne reference
-                for channel in self.dac.channel:
-                    channel.vref = adafruit_mcp4728.Vref.INTERNAL
-                    channel.gain = 1
-                
+                # Configureer voor interne reference (2.048V met gain=2 -> 4.096V)
+                # MCP4728 gebruikt internal vref van 2.048V
                 # Zet alle outputs op safe startup waarden
                 self.dac.channel_a.value = 0  # Voltage output low
                 self.dac.channel_b.value = 0
@@ -112,7 +111,8 @@ class DACController:
     def set_voltage_output(self, voltage):
         """
         Stel spanningsuitgang in (0-3.3V)
-        Gebruikt Channel A en B voor differentiële opamp aansturing
+        Gebruikt alleen Channel A voor voltage follower opamp
+        Channel B wordt NIET gebruikt (opamp feedback via hardware)
         
         Args:
             voltage: Gewenste output voltage (0-3.3V)
@@ -125,11 +125,11 @@ class DACController:
             dac_value = self._voltage_to_dac(voltage)
             
             # VOUTA op + van opamp (channel A)
+            # Opamp uitgang is via hardware feedback verbonden met - input
             self.dac.channel_a.value = dac_value
             
-            # VOUTB op - van opamp (channel B) - voor differentiële configuratie
-            # Voor single-ended: zet B op 0
-            self.dac.channel_b.value = 0
+            # VOUTB NIET aansturen - laat dit open of via hardware feedback
+            # self.dac.channel_b.value blijft zoals het was bij init (0)
             
         except Exception as e:
             print(f"✗ Fout bij instellen voltage: {e}")
