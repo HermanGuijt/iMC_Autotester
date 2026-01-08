@@ -1,41 +1,47 @@
-# BeagleBone Black DAC/ADC/Relay Controller
+# BeagleBone Black MCP4822 DAC Controller
 
-Complete Python applicatie voor het besturen van een custom BeagleBone Black cape met:
-- **MCP4728** 4-kanaals 12-bit DAC (I2C)
-- **ADS1115** 4-kanaals 16-bit ADC (I2C)
-- **Relay module** (GPIO P9 pin 12)
-- **OPA197** dual op-amps voor spanning en stroom output
+Python driver en test applicatie voor het besturen van een MCP4822 12-bit dual DAC via SPI.
 
-## Hardware Configuratie
+## Hardware Specificaties
 
-### I2C Bus (P9 pins 19 en 20)
-- **P9_19**: SCL (I2C2_SCL)
-- **P9_20**: SDA (I2C2_SDA)
+### MCP4822 DAC
+- **Type**: 12-bit dual channel DAC
+- **Interface**: SPI (max 20 MHz)
+- **Vref**: 2.048V interne referentie
+- **Output bereik**: 
+  - Gain=1: 0 - 2.048V
+  - Gain=2: 0 - 4.096V (auto-select in driver)
+- **Praktisch gebruikt**: 0 - 3.3V
 
-### MCP4728 DAC Kanalen
-- **Channel A + B**: Voltage output via eerste OPA197 (0-3.3V)
-  - VOUTA → Pin 3 (+) van opamp
-  - VOUTB → Pin 2 (-) van opamp
-  
-- **Channel C + D**: Current output via tweede OPA197 + IRLZ44N (4-20mA)
-  - VOUTC → Pin 3 (+) van opamp
-  - VOUTD → Pin 2 (-) van opamp
-  - Opamp output → IRLZ44N pin 1 (Gate)
+## Pin Configuratie BeagleBone Black
 
-### GPIO
-- **P9_12**: Relay control (1-60Hz schakelfrequentie)
+### SPI Pins (P9 header)
+- **P9_17**: SPI0_CS (hardware CS - niet gebruikt)
+- **P9_18**: SPI0_MOSI (SDI naar DAC)
+- **P9_21**: SPI0_MISO (niet gebruikt voor DAC)
+- **P9_22**: SPI0_SCLK (SCK naar DAC)
 
-### ADS1115 ADC
-- **Channel 0-3**: Algemene analoge ingangen (0-4.096V range)
+### GPIO Pins
+- **P9_20**: Chip Select (CS) - software controlled
+- **P9_12**: LDAC (Latch DAC) - triggers output update
 
 ## Software Architectuur
 
 ```
-beaglebone_controller.py     # Hoofd applicatie met menu interface
-├── dac_controller.py         # MCP4728 DAC besturing
-├── adc_controller.py         # ADS1115 ADC uitlezing
-├── relay_controller.py       # GPIO relay besturing
-└── waveform_generator.py     # Golfvorm generatie
+mcp4922_driver.py           # MCP4822 DAC driver class
+├── SPI communicatie (1 MHz)
+├── Auto gain selection
+└── Voltage sweep functies
+
+test_dac_sweep.py           # Test programma met menu
+├── Slow sweep (oscilloscoop verificatie)
+├── Fast sweep (dynamische test)  
+├── Step test (0%, 25%, 50%, 75%, 100%)
+└── Manual voltage control
+
+dac_startup.sh              # Hardware initialisatie script
+├── Activate SPI controller (runtime PM)
+└── Free GPIO 12 (unexport voor P9_20)
 ```
 
 ## Installatie op BeagleBone Black
@@ -48,152 +54,119 @@ sudo apt-get upgrade
 
 # Installeer Python en pip
 sudo apt-get install python3 python3-pip
-
-# Installeer I2C tools (optioneel voor debugging)
-sudo apt-get install i2c-tools
 ```
 
-### 2. I2C Activeren
-Controleer of I2C2 actief is:
-```bash
-ls /dev/i2c*
-# Moet /dev/i2c-2 tonen
-```
-
-Als I2C2 niet actief is, activeer in `/boot/uEnv.txt`:
-```bash
-sudo nano /boot/uEnv.txt
-# Uncomment of voeg toe:
-# dtb_overlay=/lib/firmware/BB-I2C2-00A0.dtbo
-```
-
-### 3. Python Dependencies Installeren
+### 2. Python Dependencies Installeren
 ```bash
 # Upload requirements.txt naar BeagleBone
-# Via SSH/SCP vanaf je computer:
+# Via SCP vanaf je computer:
 # scp requirements.txt debian@<beaglebone-ip>:~/
 
 # Op BeagleBone:
 pip3 install -r requirements.txt
 ```
 
+### 3. Hardware Initialisatie (BELANGRIJK!)
+**De SPI controller en GPIO moeten bij elke boot worden geïnitialiseerd:**
+
+```bash
+# Maak dac_startup.sh executable
+chmod +x dac_startup.sh
+
+# Voer uit (vereist sudo):
+sudo ./dac_startup.sh
+```
+
+Dit script doet:
+1. Activeer SPI0 controller (runtime power management)
+2. Free GPIO 12 voor gebruik als P9_20 CS pin
+3. Configureer pin modes voor SPI
+
+**Let op**: Dit moet na elke reboot opnieuw worden uitgevoerd!
+
 ### 4. Applicatie Uploaden
-Upload alle Python bestanden naar de BeagleBone:
+Upload alle bestanden naar de BeagleBone:
 ```bash
 # Vanaf je computer via SCP:
-scp beaglebone_controller.py debian@<beaglebone-ip>:~/
-scp dac_controller.py debian@<beaglebone-ip>:~/
-scp adc_controller.py debian@<beaglebone-ip>:~/
-scp relay_controller.py debian@<beaglebone-ip>:~/
-scp waveform_generator.py debian@<beaglebone-ip>:~/
-
-# Of gebruik een directory:
-scp *.py debian@<beaglebone-ip>:~/beaglebone_controller/
+scp mcp4922_driver.py test_dac_sweep.py dac_startup.sh requirements.txt debian@<beaglebone-ip>:~/autotester/
 ```
 
 ### 5. Hardware Testen
-Controleer I2C devices:
 ```bash
-# Scan I2C bus 2
-i2cdetect -y -r 2
+# Controleer SPI device
+ls -la /dev/spidev*
+# Moet /dev/spidev0.0 tonen
 
-# Verwachte output:
-#      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
-# 00:          -- -- -- -- -- -- -- -- -- -- -- -- -- 
-# 10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-# 20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-# 30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-# 40: -- -- -- -- -- -- -- -- 48 -- -- -- -- -- -- -- 
-# 50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-# 60: 60 -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-# 70: -- -- -- -- -- -- -- --
-
-# 0x48 = ADS1115 ADC
-# 0x60 = MCP4728 DAC
+# Start test programma
+python3 test_dac_sweep.py
 ```
 
 ## Gebruik
 
-### 1. Applicatie Starten
+### 1. Hardware Initialisatie (na elke boot)
 ```bash
-cd ~/beaglebone_controller  # Of waar je bestanden staan
-sudo python3 beaglebone_controller.py
+sudo ./dac_startup.sh
 ```
 
-**Opmerking**: `sudo` is nodig voor GPIO toegang.
-
-### 2. Menu Navigatie
-
-#### Hoofdmenu:
-```
-==============================================================
- BeagleBone Black - DAC/ADC/Relay Controller
-==============================================================
-
-1. Spanningsbron configureren (0-3.3V)
-2. Stroombron configureren (4-20mA)
-3. Relay configureren (1-60Hz)
-4. ADC waarden uitlezen
-5. Status weergeven
-6. Alles stoppen
-7. Afsluiten
-```
-
-#### 1. Spanningsbron (0-3.3V)
-Kies uit verschillende curve types:
-- **Constant**: Vaste spanning
-- **Sinus**: Sinusgolf met instelbare min/max en frequentie
-- **Driehoek**: Driehoekgolf
-- **Blokgolf**: Vierkantsgolf (50% duty cycle)
-- **Ramp**: Lineair oplopend van start naar eind spanning
-
-Voorbeeld:
-```
-Keuze: 2 (Sinus golf)
-Minimum spanning (V): 0.5
-Maximum spanning (V): 3.0
-Frequentie (Hz): 2
-→ Genereert 2Hz sinusgolf tussen 0.5V en 3.0V
-```
-
-#### 2. Stroombron (4-20mA)
-Zelfde opties als spanningsbron, maar voor stroom output:
-```
-Keuze: 1 (Constant)
-Voer stroom in (4-20mA): 12
-→ Stelt constante 12mA in
-```
-
-#### 3. Relay Configuratie
-```
-Keuze: 1 (Start relay met frequentie)
-Frequentie (1-60Hz): 10
-→ Relay schakelt 10x per seconde (10Hz)
-```
-
-#### 4. ADC Waarden
-Real-time monitoring van alle 4 ADC kanalen:
-```
-CH0:   1.234V  CH1:   2.456V  CH2:   0.123V  CH3:   3.321V
-```
-Druk CTRL+C om te stoppen en terug te gaan naar het menu.
-
-### 3. Individuele Module Tests
-
-Test elke module afzonderlijk:
-
+### 2. Test Programma Starten
 ```bash
-# Test DAC
-sudo python3 dac_controller.py
+python3 test_dac_sweep.py
+```
 
-# Test ADC
-sudo python3 adc_controller.py
+### 3. Menu Navigatie
 
-# Test Relay
-sudo python3 relay_controller.py
+```
+============================================================
+TEST MENU
+============================================================
+1. Langzame Sweep (0V → VCC) - voor scope verificatie
+2. Snelle Sweep (meerdere cycles) - dynamische test
+3. Stap Test (0%, 25%, 50%, 75%, 100%)
+4. Handmatige Spanning Controle
+5. Reset naar 0V
+q. Afsluiten
+```
 
-# Test Waveform Generator
-python3 waveform_generator.py  # Geen sudo nodig
+#### Optie 1: Langzame Sweep
+- Sweep van 0V → 3.3V in 200 stappen
+- 50ms delay per stap (10 seconden totaal)
+- Ideaal voor oscilloscoop verificatie
+
+#### Optie 2: Snelle Sweep
+- 3 herhaalde sweeps
+- 100 stappen per sweep
+- 10ms delay per stap
+- Voor dynamische test
+
+#### Optie 3: Stap Test
+- Vaste percentages: 0%, 25%, 50%, 75%, 100%
+- 2 seconden per stap
+- Verificatie van discrete spanningen
+
+#### Optie 4: Handmatige Controle
+```
+Gewenste spanning (V): 2.5
+✓ Ingesteld: 2.5000V (DAC: 2499/4095, gain=2)
+```
+Type 'q' om te stoppen
+
+### 4. Direct Python API Gebruik
+
+```python
+from mcp4922_driver import MCP4822
+
+# Initialiseer DAC (hardware Vref = 2.048V)
+dac = MCP4822(vref=2.048)
+
+# Stel spanning in (gain wordt automatisch gekozen)
+dac.set_voltage('A', 1.5)    # Kanaal A op 1.5V (gain=1)
+dac.set_voltage('B', 3.0)    # Kanaal B op 3.0V (gain=2 auto)
+
+# Voltage sweep
+dac.voltage_sweep('A', start_v=0, end_v=3.3, steps=100, delay=0.01)
+
+# Cleanup
+dac.cleanup()
 ```
 
 ## Technische Details
@@ -224,86 +197,98 @@ De waveform generator ondersteunt:
 - **Sawtooth**: Lineair stijgend, abrupte val
 - **Ramp**: Eenmalig lineair tussen twee waarden
 - **Exponential**: Exponentiële benadering
-- **Custom**: Vrij te definiëren punten
 
-Update rate: **100Hz** (10ms interval)
+## Technische Details
 
-### Thread Safety
+### Auto Gain Selection
+De driver selecteert automatisch de juiste gain:
+- **Gain=1** voor spanningen ≤ 2.048V (bereik 0-2.048V)
+- **Gain=2** voor spanningen > 2.048V (bereik 0-4.096V)
 
-De applicatie gebruikt threads voor:
-- Voltage waveform generatie (aparte thread)
-- Current waveform generatie (aparte thread)
-- Relay switching (aparte thread)
+### SPI Configuratie
+- **Mode**: 0 (CPOL=0, CPHA=0)
+- **Clock**: 1 MHz
+- **Bits per word**: 8
+- **Chip Select**: Software controlled (actief LOW)
 
-Alle threads zijn daemon threads en stoppen automatisch bij afsluiten.
+### DAC Command Word Format
+```
+Bit 15: A/B Select (0=A, 1=B)
+Bit 14: BUF (1=buffered Vref)
+Bit 13: GA (0=2x gain, 1=1x gain)
+Bit 12: SHDN (1=active output, 0=shutdown)
+Bit 11-0: 12-bit DAC value (0-4095)
+```
 
 ## Troubleshooting
 
-### I2C Device niet gevonden
+### SPI Device niet gevonden
 ```bash
-# Controleer I2C bus:
-ls -l /dev/i2c-2
+# Controleer SPI device:
+ls -l /dev/spidev0.0
 
-# Controleer device tree overlays:
-sudo /opt/scripts/tools/version.sh | grep UBOOT
-
-# Check I2C devices:
-i2cdetect -y -r 2
+# Voer startup script uit:
+sudo ./dac_startup.sh
 ```
 
 ### GPIO Permission Denied
-Gebruik `sudo` voor GPIO toegang:
+Gebruik `sudo` voor het startup script:
 ```bash
-sudo python3 beaglebone_controller.py
+sudo ./dac_startup.sh
 ```
 
-Of voeg user toe aan gpio groep:
-```bash
-sudo usermod -a -G gpio $USER
-# Log uit en weer in
-```
+### Geen output op DAC
+1. Controleer of startup script is uitgevoerd (na elke boot!)
+2. Controleer SPI clock op oscilloscoop (P9_22)
+3. Controleer CS signaal op P9_20
+4. Verifieer LDAC pulses op P9_12
 
 ### Import Errors
-Controleer of alle dependencies geïnstalleerd zijn:
+Controleer of Adafruit_BBIO geïnstalleerd is:
 ```bash
 pip3 list | grep -i adafruit
-pip3 list | grep -i bbio
-```
+# Moet tonen: Adafruit-BBIO
 
-Herinstalleer indien nodig:
-```bash
+# Herinstalleer indien nodig:
 pip3 install --upgrade -r requirements.txt
 ```
 
 ### Hardware Checklist
-- ✓ 3.3V voeding aangesloten
-- ✓ I2C pull-up weerstanden aanwezig (typisch 4.7kΩ)
-- ✓ DAC ADDR pins correct geconfigureerd (standaard 0x60)
-- ✓ ADC ADDR pin correct (standaard 0x48)
-- ✓ Opamp voeding aangesloten
-- ✓ Relay voeding en ground aangesloten
+- ✓ MCP4822 voeding (2.7V - 5.5V, typisch 3.3V)
+- ✓ Vref pin aangesloten (of interne 2.048V gebruikt)
+- ✓ LDAC pin naar P9_12 (of naar GND voor auto-update)
+- ✓ CS pin naar P9_20
+- ✓ SDI (MOSI) naar P9_18
+- ✓ SCK naar P9_22
+- ✓ Alle ground pins verbonden
 
-## Veiligheid
+### BeagleBone Specifieke Issues
 
-Bij het stoppen van de applicatie:
-- Voltage output → 0V
-- Current output → 4mA (minimum)
-- Relay → UIT
+**SPI Controller Suspended** (meest voorkomende probleem):
+```bash
+# Activeer SPI controller:
+sudo sh -c 'echo "on" > /sys/class/spi_master/spi0/device/power/control'
 
-Emergency stop: Druk **CTRL+C** of selecteer menu optie **6**.
+# Of gebruik het startup script:
+sudo ./dac_startup.sh
+```
+
+**P9_20 GPIO Conflict**:
+```bash
+# Free GPIO 12:
+sudo sh -c 'echo 12 > /sys/class/gpio/unexport'
+```
+
+## Bekende Beperkingen
+
+- BeagleBone SPI0 controller gaat standaard in suspended mode → gebruik dac_startup.sh
+- Na reboot moet dac_startup.sh opnieuw worden uitgevoerd
+- Maximum praktische output: 3.3V (theoretisch 4.096V mogelijk)
 
 ## Licentie
 
-Deze code is ontwikkeld voor gebruik met BeagleBone Black custom hardware.
-
-## Support
-
-Voor vragen of problemen, controleer:
-1. Hardware connecties
-2. I2C bus status (`i2cdetect`)
-3. Python package versies
-4. BeagleBone kernel versie
+Deze code is ontwikkeld voor gebruik met BeagleBone Black en MCP4822 DAC.
 
 ---
 
-**Veel succes met je project!** 🚀
+**Veel succes met je DAC project!** 🚀

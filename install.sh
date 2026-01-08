@@ -1,58 +1,37 @@
 #!/bin/bash
-# Installatie script voor BeagleBone Black
-# Gebruik: sudo ./install.sh
+# Installatie script voor BeagleBone Black MCP4822 DAC
+# Gebruik: ./install.sh (geen sudo nodig)
 
 echo "=========================================="
-echo " BeagleBone Black Controller Installatie"
+echo " BeagleBone MCP4822 DAC Installatie"
 echo "=========================================="
 echo ""
 
-# Check of script als root wordt uitgevoerd
-if [ "$EUID" -ne 0 ]; then 
-    echo "✗ Voer dit script uit als root: sudo ./install.sh"
-    exit 1
-fi
-
-echo "1. Systeem updaten..."
-apt-get update
+echo "1. Python dependencies installeren..."
+pip3 install -r requirements.txt --user
 
 echo ""
-echo "2. Python dependencies installeren..."
-pip3 install -r requirements.txt
-
-echo ""
-echo "3. I2C configuratie controleren..."
-if [ -e "/dev/i2c-2" ]; then
-    echo "✓ I2C-2 is actief"
+echo "2. SPI configuratie controleren..."
+if [ -e "/dev/spidev0.0" ]; then
+    echo "✓ SPI0 device gevonden"
 else
-    echo "✗ I2C-2 niet gevonden!"
-    echo "  Activeer I2C2 in /boot/uEnv.txt en herstart"
-    echo "  Voeg toe: dtb_overlay=/lib/firmware/BB-I2C2-00A0.dtbo"
+    echo "⚠ SPI0 device niet gevonden"
+    echo "  SPI controller moet mogelijk geactiveerd worden"
 fi
 
 echo ""
-echo "4. I2C devices scannen..."
-i2cdetect -y -r 2
-
-echo ""
-echo "5. Bestandspermissies instellen..."
-chmod +x beaglebone_controller.py
-chmod +x dac_controller.py
-chmod +x adc_controller.py
-chmod +x relay_controller.py
-chmod +x waveform_generator.py
+echo "3. Bestandspermissies instellen..."
+chmod +x dac_startup.sh
+chmod +x test_dac_sweep.py
 
 echo ""
 echo "=========================================="
 echo " ✓ Installatie voltooid!"
 echo "=========================================="
 echo ""
-echo "Start de applicatie met:"
-echo "  sudo python3 beaglebone_controller.py"
+echo "BELANGRIJK: Voer na elke boot uit:"
+echo "  sudo ./dac_startup.sh"
 echo ""
-echo "Test individuele modules met:"
-echo "  sudo python3 dac_controller.py"
-echo "  sudo python3 adc_controller.py"
-echo "  sudo python3 relay_controller.py"
-echo "  python3 waveform_generator.py"
+echo "Start de applicatie met:"
+echo "  python3 test_dac_sweep.py"
 echo ""
