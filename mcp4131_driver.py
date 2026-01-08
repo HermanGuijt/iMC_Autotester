@@ -177,47 +177,9 @@ class MCP4131:
     
     def cleanup(self):
         """
-        Cleanup: zet wiper op middenstand
+        Cleanup: zet wiper op middenstand en cleanup GPIO
         """
         print("\nReset wiper naar middenstand (50%)...")
         self.set_wiper(self.max_value // 2)
+        GPIO.cleanup()
         print("Cleanup voltooid")
-
-
-if __name__ == "__main__":
-    # Test code
-    print("MCP4131 Driver Test")
-    print("=" * 50)
-    
-    try:
-        # Initialiseer digitale potmeter
-        pot = MCP4131(spi_bus=0, spi_device=0, cs_pin="P9_24")
-        
-        # Test enkele waarden
-        print("\nTest enkele wiper waarden:")
-        test_values = [0, 32, 64, 96, 128]
-        
-        for val in test_values:
-            pot.set_wiper(val)
-            resistance = (val / 128) * 10000
-            percentage = (val / 128) * 100
-            print(f"  Wiper: {val:3d} → R={resistance:5.0f}Ω ({percentage:3.0f}%)")
-            time.sleep(0.5)
-        
-        print("\nTest percentage mode:")
-        for pct in [0, 25, 50, 75, 100]:
-            actual_pct = pot.set_percentage(pct)
-            print(f"  {pct}% → {actual_pct:.1f}%")
-            time.sleep(0.5)
-        
-        print("\nDruk op Ctrl+C om te stoppen")
-        time.sleep(2)
-        
-    except KeyboardInterrupt:
-        print("\n\nProgramma gestopt")
-    except Exception as e:
-        print(f"\n❌ Fout: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        pot.cleanup()
