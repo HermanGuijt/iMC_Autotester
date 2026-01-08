@@ -11,7 +11,7 @@ Vanaf je Windows computer (in de map met de bestanden):
 $BB_IP = "192.168.178.179"  # Of jouw BeagleBone IP
 
 # Upload bestanden
-scp mcp4922_driver.py test_dac_sweep.py dac_startup.sh requirements.txt debian@${BB_IP}:~/autotester/
+scp mcp4822_driver.py test_dac_sweep.py dac_startup.sh requirements.txt debian@${BB_IP}:~/autotester/
 ```
 
 ### 2. Inloggen op BeagleBone
@@ -165,7 +165,7 @@ Maak een `upload.ps1` bestand op je Windows PC:
 $BB_IP = "192.168.178.179"  # Pas aan naar jouw IP
 
 Write-Host "Uploading naar BeagleBone..." -ForegroundColor Green
-scp mcp4922_driver.py test_dac_sweep.py dac_startup.sh debian@${BB_IP}:~/autotester/
+scp mcp4822_driver.py test_dac_sweep.py dac_startup.sh debian@${BB_IP}:~/autotester/
 
 Write-Host "Done! SSH verbinden..." -ForegroundColor Green
 ssh debian@${BB_IP}

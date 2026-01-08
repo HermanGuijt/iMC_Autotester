@@ -16,7 +16,7 @@ if sys.version_info[0] < 3:
     print("Gebruik: python3 test_dac_sweep.py")
     sys.exit(1)
 
-from mcp4922_driver import MCP4822
+from mcp4822_driver import MCP4822
 
 
 def slow_sweep_test(dac, channel='A', max_v=3.3):

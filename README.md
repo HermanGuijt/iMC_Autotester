@@ -28,7 +28,7 @@ Python driver en test applicatie voor het besturen van een MCP4822 12-bit dual D
 ## Software Architectuur
 
 ```
-mcp4922_driver.py           # MCP4822 DAC driver class
+mcp4822_driver.py           # MCP4822 DAC driver class
 ├── SPI communicatie (1 MHz)
 ├── Auto gain selection
 └── Voltage sweep functies
@@ -88,7 +88,7 @@ Dit script doet:
 Upload alle bestanden naar de BeagleBone:
 ```bash
 # Vanaf je computer via SCP:
-scp mcp4922_driver.py test_dac_sweep.py dac_startup.sh requirements.txt debian@<beaglebone-ip>:~/autotester/
+scp mcp4822_driver.py test_dac_sweep.py dac_startup.sh requirements.txt debian@<beaglebone-ip>:~/autotester/
 ```
 
 ### 5. Hardware Testen
@@ -153,7 +153,7 @@ Type 'q' om te stoppen
 ### 4. Direct Python API Gebruik
 
 ```python
-from mcp4922_driver import MCP4822
+from mcp4822_driver import MCP4822
 
 # Initialiseer DAC (hardware Vref = 2.048V)
 dac = MCP4822(vref=2.048)
